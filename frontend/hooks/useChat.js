@@ -21,7 +21,7 @@ const useChat = () => {
     setChatMessages((prev) => [...prev, userMessage]);
 
     try {
-      const response = await fetch("http://localhost:8000/api/ai", {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_URL + '/api/ai', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

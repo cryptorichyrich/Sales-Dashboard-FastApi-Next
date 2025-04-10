@@ -8,7 +8,7 @@ const useSalesData = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/data");
+        const res = await fetch(process.env.NEXT_PUBLIC_BACKEND_URL + '/api/data');
         const data = await res.json();
         setSalesReps(data.salesReps || []);
         setLoading(false);
