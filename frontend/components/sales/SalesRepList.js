@@ -12,9 +12,9 @@ const SalesRepsList = ({ salesReps, loading, selectedRegion, setSelectedRegion }
     : salesReps;
 
   return (
-    <section className="mb-8">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-semibold text-gray-700">
+    <section className="mb-8 w-full">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-semibold text-blue-400">
           Sales Representatives
         </h2>
         <RegionFilter
@@ -25,9 +25,11 @@ const SalesRepsList = ({ salesReps, loading, selectedRegion, setSelectedRegion }
       </div>
 
       {loading ? (
-        <p className="text-center text-gray-600">Loading sales representatives...</p>
+        <div className="w-full flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredSalesReps.map((rep) => (
             <SalesRepCard key={rep.id} rep={rep} />
           ))}

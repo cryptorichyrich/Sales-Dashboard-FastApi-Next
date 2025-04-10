@@ -5,7 +5,7 @@ const RegionFilter = ({ regions, selectedRegion, onRegionChange }) => {
     <div>
       <label
         htmlFor="region-select"
-        className="mr-2 text-gray-600"
+        className="mr-2 text-gray-300"
       >
         Filter by Region:
       </label>
@@ -13,7 +13,7 @@ const RegionFilter = ({ regions, selectedRegion, onRegionChange }) => {
         id="region-select"
         value={selectedRegion}
         onChange={(e) => onRegionChange(e.target.value)}
-        className="p-2 border rounded"
+        className="p-2 border border-gray-600 rounded bg-gray-700 text-white"
       >
         <option value="">All Regions</option>
         {regions.map((region) => (

@@ -1,8 +1,10 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import uvicorn
 import json
 import os
+import psutil
 from dotenv import load_dotenv
 import google.generativeai as genai
 
@@ -198,11 +200,107 @@ def get_data():
     return DUMMY_DATA
 
 @app.get("/health")
-def health_check():
+async def health_check():
     """
-    Simple health check endpoint to verify API is running.
+    Comprehensive health check endpoint that verifies API is running
+    along with all critical dependencies and services.
+    
+    Returns:
+        JSON with detailed health status of various system components
     """
-    return {"status": "healthy"}
+    import psutil
+    import time
+    from fastapi import status
+    
+    health_data = {
+        "status": "healthy",
+        "timestamp": time.time(),
+        "version": "1.0.0",  # Add your application version
+        "components": {}
+    }
+    
+    # Check file system access (data file)
+    try:
+        with open("dummyData.json", "r") as f:
+            # Just checking if we can open the file
+            health_data["components"]["datastore"] = {
+                "status": "up",
+                "type": "file",
+                "responseTime": 0  # You could time this operation
+            }
+    except Exception as e:
+        health_data["components"]["datastore"] = {
+            "status": "down",
+            "type": "file",
+            "error": str(e)
+        }
+        health_data["status"] = "degraded"
+    
+    # Check Gemini API connectivity
+    if GEMINI_API_KEY:
+        try:
+            # Simple test to verify Gemini API is responsive
+            # You might want to implement a lightweight call here
+            model = genai.GenerativeModel('gemini-2.0-flash-lite')
+            start_time = time.time()
+            # Just check if the model is available without generating content
+            # This is a lightweight operation
+            model_info = model.count_tokens("test")
+            response_time = time.time() - start_time
+            
+            health_data["components"]["gemini_api"] = {
+                "status": "up",
+                "responseTime": round(response_time * 1000, 2)  # in ms
+            }
+        except Exception as e:
+            health_data["components"]["gemini_api"] = {
+                "status": "down",
+                "error": str(e)
+            }
+            health_data["status"] = "degraded"
+    else:
+        health_data["components"]["gemini_api"] = {
+            "status": "disabled",
+            "reason": "API key not configured"
+        }
+        # This is expected behavior if API key isn't set, so we don't mark as degraded
+    
+    # System resources
+    try:
+        memory = psutil.virtual_memory()
+        health_data["components"]["system"] = {
+            "status": "up",
+            "memory": {
+                "total": memory.total,
+                "available": memory.available,
+                "percent": memory.percent
+            },
+            "cpu": {
+                "usage": psutil.cpu_percent(interval=0.1)
+            }
+        }
+        
+        # Optional: Set degraded status if resources are critically low
+        if memory.percent > 95 or health_data["components"]["system"]["cpu"]["usage"] > 95:
+            health_data["components"]["system"]["status"] = "warning"
+            if health_data["status"] == "healthy":
+                health_data["status"] = "degraded"
+    except Exception as e:
+        health_data["components"]["system"] = {
+            "status": "unknown",
+            "error": str(e)
+        }
+    
+    # Determine response status code based on overall health
+    response_status = status.HTTP_200_OK
+    if health_data["status"] != "healthy":
+        response_status = status.HTTP_503_SERVICE_UNAVAILABLE
+        
+    # Return health data with appropriate status code
+    return JSONResponse(
+        content=health_data,
+        status_code=response_status
+    )
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
