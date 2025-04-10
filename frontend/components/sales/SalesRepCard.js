@@ -39,13 +39,13 @@ const SalesRepCard = ({ rep }) => {
               </span>
             </div>
             <span
-              className={`text-center text-sm font-medium ${
+              className={`text-sm font-medium text-center ${
                 deal.status === "Closed Won"
                   ? "text-green-400"
                   : deal.status === "In Progress"
                   ? "text-yellow-400"
                   : "text-red-400"
-              } text-center`}
+              }`}
             >
               {deal.status}
             </span>

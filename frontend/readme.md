@@ -1,121 +1,202 @@
-# Sales Dashboard Frontend
+# Sales Dashboard Backend
 
-A Next.js frontend application for visualizing sales representatives data and interacting with an AI chat assistant.
+A FastAPI backend for serving sales data and providing AI-powered insights using Google's Gemini model.
 
 ## Features
 
-- **Sales Representatives Display**: View detailed cards for each sales representative
-- **Region Filtering**: Filter sales reps by geographic region
-- **AI Chat Interface**: Ask questions about sales data and receive AI-powered insights
-- **Responsive Design**: Works seamlessly across desktop and mobile devices
+- **Data API**: Endpoints for accessing sales representatives data
+- **AI Integration**: Natural language processing for sales queries using Gemini 2.0 Flash-Lite
+- **Context Generation**: Automatic context generation from sales data for more accurate AI responses
 
 ## Project Structure
 
 ```
-frontend/
-├── components/           # React components
-│   ├── ai/               # AI chat components
-│   │   ├── ChatInput.js
-│   │   ├── ChatMessages.js
-│   │   └── ChatSection.js
-│   ├── layout/           # Layout components
-│   │   ├── Container.js
-│   │   └── Header.js
-│   └── sales/            # Sales data visualization
-│       ├── RegionFilter.js
-│       ├── SalesRepCard.js
-│       └── SalesRepList.js
-├── hooks/                # Custom React hooks
-│   ├── useChat.js        # Chat functionality
-│   └── useSalesData.js   # Data fetching
-└── pages/                # Next.js pages
-    ├── _app.js
-    └── index.js          # Main dashboard page
+backend/
+├── dummyData.json      # Mock sales data in JSON format
+├── main.py             # FastAPI application with all endpoints
+├── requirements.txt    # Python dependencies
+├── .env                # Environment variables (create this file)
+└── README.md           # This documentation file
 ```
 
 ## Prerequisites
 
-- Node.js (v14 or later)
-- npm or yarn
-- Backend API running on http://localhost:8000
+- Python 3.7 or later
+- Google Gemini API key (for AI features)
+- Virtual environment tool (recommended: venv)
 
 ## Setup Instructions
 
-1. **Install Dependencies**
+1. **Clone the Repository**
 
    ```bash
-   # Navigate to the frontend directory
-   cd frontend
+   git clone <repository-url>
+   cd backend
+   ```
+
+2. **Create and Activate Virtual Environment**
+
+   ```bash
+   # Create a virtual environment
+   python -m venv venv
    
-   # Install dependencies
-   npm install
-   # OR if you use yarn
-   yarn install
+   # Activate the virtual environment
+   # On Windows:
+   venv\Scripts\activate
+   
+   # On macOS/Linux:
+   source venv/bin/activate
    ```
 
-2. **Start the Development Server**
+3. **Install Dependencies**
 
    ```bash
-   npm run dev
-   # OR with yarn
-   yarn dev
+   pip install -r requirements.txt
    ```
 
-   The application will be available at http://localhost:3000
+4. **Configure Environment Variables**
 
-## Using the Dashboard
+   Create a `.env` file in the backend directory with the following:
 
-1. **View Sales Representatives**:
-   - Browse through sales rep cards showing their details, skills, and deals
-   - Each deal shows its status (Closed Won, In Progress, Closed Lost) and value
+   ```
+   GOOGLE_GEMINI_API_KEY=your_gemini_api_key_here
+   ```
 
-2. **Filter by Region**:
-   - Use the dropdown at the top of the Sales Representatives section to filter by region
-   - Select "All Regions" to view all representatives
+   You can obtain a Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey).
 
-3. **Interact with the AI Assistant**:
-   - Scroll to the bottom "Ask About Sales" section
-   - Type your question about sales data (e.g., "Who is the top performer in North America?")
-   - Click "Ask" or press CTRL+ENTER to submit your question
-   - View the AI's response in the chat window
+5. **Start the Server**
 
-## Key Components
+   ```bash
+   # Run the server with auto-reload
+   python main.py
+   ```
 
-- **SalesRepsList**: Main component for displaying sales representatives
-- **RegionFilter**: Dropdown for filtering by region
-- **SalesRepCard**: Individual card showing rep details and deals
-- **ChatSection**: Container for the AI chat interface
-- **ChatMessages**: Displays chat history with formatting support
-- **ChatInput**: Input field for entering questions
+   The server will run on http://localhost:8000 by default.
 
-## Custom Hooks
+6. **Verify Installation**
 
-- **useSalesData**: Fetches sales rep data from the backend API
-- **useChat**: Manages chat state and handles sending/receiving messages
+   Visit http://localhost:8000/health in your browser or run:
+   
+   ```bash
+   curl http://localhost:8000/health
+   ```
+   
+   You should see: `{"status": "healthy"}`
 
-## Styling
+7. **Explore API Documentation**
 
-The application uses Tailwind CSS for styling. Tailwind classes are applied directly within component files.
+   Visit http://localhost:8000/docs in your browser to access the interactive Swagger UI documentation, where you can explore and test all available endpoints.
 
-## Backend API Requirements
+## API Documentation
 
-The frontend expects the following API endpoints to be available:
+### Swagger UI Documentation
 
-- `GET http://localhost:8000/api/data`: Returns sales representatives data
-- `POST http://localhost:8000/api/ai`: Accepts chat questions and returns AI responses
+FastAPI automatically generates interactive API documentation using Swagger UI. To access this documentation:
+
+1. Start the server with `python main.py`
+2. Open your browser and navigate to: `http://localhost:8000/docs`
+
+The Swagger UI provides:
+- A complete list of all available endpoints
+- Interactive request builders to test API calls directly from the browser
+- Request and response schema information
+- The ability to execute requests and see responses in real-time
+
+You can also access alternative API documentation using ReDoc at: `http://localhost:8000/redoc`
+
+### Data Endpoints
+
+- `GET /api/data` 
+  - Returns the full sales representatives data
+  - Response: JSON object containing sales representatives information
+  - No parameters required
+
+### AI Endpoints
+
+- `POST /api/ai`
+  - Accepts a user question and returns an AI-generated response
+  - Request Body: `{ "question": "your question here" }`
+  - Response: `{ "answer": "AI-generated answer" }`
+  - Requires valid Gemini API key in the environment variables
+
+### Utility Endpoints
+
+- `GET /health`
+  - Simple health check endpoint
+  - Response: `{ "status": "healthy" }`
+
+## Data Model
+
+The backend works with the following data structure:
+
+```json
+{
+  "salesReps": [
+    {
+      "id": Number,
+      "name": "String",
+      "role": "String",
+      "region": "String",
+      "skills": ["String"],
+      "deals": [
+        { 
+          "client": "String", 
+          "value": Number, 
+          "status": "String" 
+        }
+      ],
+      "clients": [
+        { 
+          "name": "String", 
+          "industry": "String", 
+          "contact": "String" 
+        }
+      ]
+    }
+  ]
+}
+```
+
+## AI Implementation Details
+
+The backend uses Google's Gemini 2.0 Flash-Lite model to process natural language queries about the sales data:
+
+- **Context Generation**: The backend automatically generates a detailed context from the sales data using the `generate_sales_context()` function
+- **Intelligent Prompting**: User questions are wrapped with the generated context for more relevant responses
+- **Optimized Parameters**:
+  - `temperature`: 0.5 (balanced creativity and factuality)
+  - `max_output_tokens`: 200 (concise responses)
+- **Error Handling**: Comprehensive error handling to provide graceful fallbacks when the AI service is unavailable
+
+## Configuration Options
+
+The following environment variables can be configured:
+
+- `GOOGLE_GEMINI_API_KEY`: Required for AI functionality
+- `PORT`: (Optional) Server port (defaults to 8000)
+- `HOST`: (Optional) Server host (defaults to 0.0.0.0)
 
 ## Troubleshooting
 
-- **No data displayed**: Ensure the backend API is running on http://localhost:8000
-- **AI chat not responding**: Verify the backend AI endpoint is configured correctly
-- **Layout issues**: Make sure Tailwind CSS is properly installed and configured
+- **Missing API Key Warning**: If you see "WARNING: Gemini API key not found. AI features will be disabled" on startup, check your `.env` file
+- **AI Responses Unavailable**: If responses from `/api/ai` return "AI features are currently unavailable", verify your Gemini API key
+- **CORS Issues**: If frontend cannot access the API, check the CORS configuration in `main.py`
+- **Server Start Failures**: Check for port conflicts if the server fails to start
+- **Dependencies Issues**: Make sure all dependencies are installed with `pip install -r requirements.txt`
+
+## Security Considerations
+
+- This implementation uses open CORS settings for development. For production, restrict `allow_origins` to your frontend domain
+- The Gemini API key should be kept secure and not committed to version control
+- For production, consider adding proper authentication and rate limiting
+
+## Performance Optimization
+
+- The sales context is generated once when the server starts, reducing processing time for each request
+- Consider implementing caching for frequent queries to reduce API calls to Gemini
 
 ## Potential Improvements
 
-1. **Data Visualization**: Add charts and graphs for better sales metrics visualization
-2. **Theming Support**: Add light/dark mode themes
-3. **Internationalization**: Add multi-language support
-4. **State Management**: Implement Redux or Context API for more complex state management
-5. **Accessibility**: Improve keyboard navigation and screen reader support
-6. **Testing**: Add Jest and React Testing Library tests
-7. **Performance Optimization**: Implement code splitting and lazy loading
+1. **Database Integration**: Replace dummyData.json with a proper database (PostgreSQL, MongoDB)
+2. **Authentication**: Add JWT authentication for secure access
+3. **Request Validation**: Add more comprehensive request validation

@@ -161,37 +161,6 @@ async def ai_endpoint(request: Request):
         print(f"Error in AI endpoint: {e}")
         return {"answer": "Sorry, I'm having trouble processing your request right now."}
 
-# Analytics Endpoint (unchanged)
-@app.get("/api/sales-analytics")
-def get_sales_analytics():
-    """
-    Provide sales analytics based on the sales representatives data.
-    """
-    sales_reps = DUMMY_DATA.get('salesReps', [])
-    
-    # Calculate total deals and their statuses
-    total_deals = []
-    deal_status_summary = {
-        "Closed Won": 0,
-        "In Progress": 0,
-        "Closed Lost": 0
-    }
-    total_deal_value = 0
-    
-    for rep in sales_reps:
-        for deal in rep.get('deals', []):
-            total_deals.append(deal)
-            deal_status_summary[deal['status']] += 1
-            total_deal_value += deal['value']
-    
-    return {
-        "totalDealCount": len(total_deals),
-        "dealStatusSummary": deal_status_summary,
-        "totalDealValue": total_deal_value,
-        "averageDealValue": total_deal_value / len(total_deals) if total_deals else 0,
-        "regionDistribution": list(set(rep['region'] for rep in sales_reps))
-    }
-
 @app.get("/api/data")
 def get_data():
     """
