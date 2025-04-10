@@ -9,7 +9,6 @@ const SalesRepCard = ({ rep }) => {
       <p className="text-gray-300 mb-4">
         {rep.role} | {rep.region}
       </p>
-      
       <div className="bg-gray-700 rounded-md p-4 mb-4">
         <strong className="block mb-2 text-gray-300">Skills:</strong>
         <div className="flex flex-wrap gap-2">
@@ -40,13 +39,13 @@ const SalesRepCard = ({ rep }) => {
               </span>
             </div>
             <span
-              className={`text-sm font-medium ${
+              className={`text-center text-sm font-medium ${
                 deal.status === "Closed Won"
                   ? "text-green-400"
                   : deal.status === "In Progress"
                   ? "text-yellow-400"
                   : "text-red-400"
-              }`}
+              } text-center`}
             >
               {deal.status}
             </span>

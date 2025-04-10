@@ -6,9 +6,11 @@ import Header from "../components/layout/Header";
 
 // Sales components
 import SalesRepsList from "../components/sales/SalesRepList";
+import RegionFilter from "../components/sales/RegionFilter";
 
 // AI Chat components
 import FloatingChat from "../components/ai/FloatingChat";
+import FloatingChatButton from "../components/ai/FloatingChatButton";
 
 // Health Status component
 import HealthStatusIndicator from "../components/system/HealthStatusIndicator";
@@ -30,6 +32,9 @@ export default function Home() {
   // Theme state
   const [darkMode, setDarkMode] = useState(true);
   
+  // Chat visibility state
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
   // Update body class when theme changes
   useEffect(() => {
     if (darkMode) {
@@ -94,65 +99,63 @@ export default function Home() {
     }
   };
 
+  // Region list for filtering
+  const regions = [...new Set(salesReps.map((rep) => rep.region))];
+
+  // Filter sales reps by region
+  const filteredSalesReps = selectedRegion
+    ? salesReps.filter((rep) => rep.region === selectedRegion)
+    : salesReps;
+
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
+    <div className={`min-h-screen transition-colors duration-300 ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
       <Container>
-        <div className="flex justify-between items-center mb-6">
-          <Header title="Sales Dashboard" darkMode={darkMode} />
+        <div className="flex flex-col md:flex-row justify-between items-center mb-6">
+          <div className="mb-4 md:mb-0">
+            <Header title="Sales Dashboard" />
+          </div>
           
-          <div className="flex items-center">
-            {/* Health Status Indicator */}
+          <div className="flex items-center space-x-4">
+            {/* Enhanced Health Status Indicator */}
             <HealthStatusIndicator darkMode={darkMode} />
             
             {/* Theme Toggle Switch */}
-            <div className="relative inline-block w-14 h-7 mr-2">
+            <div className="relative inline-block w-12 h-6">
               <input
                 type="checkbox"
-                className="opacity-0 w-0 h-0"
+                className="sr-only"
                 checked={darkMode}
                 onChange={toggleTheme}
                 id="theme-toggle"
               />
               <label
                 htmlFor="theme-toggle"
-                className={`absolute cursor-pointer top-0 left-0 right-0 bottom-0 rounded-full border ${
-                  darkMode ? "bg-gray-700 border-gray-600" : "bg-gray-200 border-gray-300"
-                } transition-colors duration-300`}
+                className={`absolute cursor-pointer inset-0 rounded-full transition-colors duration-300 ${
+                  darkMode ? 'bg-gray-700' : 'bg-gray-300'
+                }`}
               >
-                <div
-                  className={`absolute top-0.5 w-6 h-6 rounded-full shadow-md transition-all duration-300 flex items-center justify-center ${
-                    darkMode ? "translate-x-7 bg-gray-800" : "translate-x-0.5 bg-white"
+                <span 
+                  className={`absolute inset-y-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform duration-300 flex items-center justify-center ${
+                    darkMode ? 'translate-x-6 bg-gray-800' : ''
                   }`}
                 >
                   {darkMode ? (
-                    // Moon icon
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 text-yellow-300"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
+                    <svg className="w-3 h-3 text-yellow-300" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
                     </svg>
                   ) : (
-                    // Sun icon
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 text-yellow-500"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
+                    <svg className="w-3 h-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
                     </svg>
                   )}
-                </div>
+                </span>
               </label>
             </div>
           </div>
         </div>
 
         {/* Dashboard Summary */}
-        <div className={`mb-8 grid grid-cols-1 md:grid-cols-3 gap-4`}>
+        <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <DashboardCard 
             title="Total Sales Reps" 
             value={salesReps.length} 
@@ -183,35 +186,61 @@ export default function Home() {
           />
         </div>
 
-        {/* Full Width Sales Representatives Section */}
-        <div className="w-full">
-          <SalesRepsList 
-            salesReps={salesReps} 
-            loading={loading} 
-            selectedRegion={selectedRegion}
-            setSelectedRegion={setSelectedRegion}
+        {/* Sales Representatives Section with Filter */}
+        <section className="mb-8 w-full">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <h2 className="text-2xl font-semibold text-blue-400">
+              Sales Representatives
+            </h2>
+            <RegionFilter
+              regions={regions}
+              selectedRegion={selectedRegion}
+              onRegionChange={setSelectedRegion}
+              darkMode={darkMode}
+            />
+          </div>
+
+          {loading ? (
+            <div className="w-full flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredSalesReps.map((rep) => (
+                <SalesRepCard key={rep.id} rep={rep} darkMode={darkMode} />
+              ))}
+            </div>
+          )}
+        </section>
+      </Container>
+      
+      {/* Floating Chat */}
+      {isChatOpen ? (
+        <div className="fixed bottom-0 right-0 md:bottom-6 md:right-6 w-full md:w-96 h-[480px] md:h-[520px] md:rounded-lg shadow-xl z-50 overflow-hidden">
+          <FloatingChat 
+            chatMessages={chatMessages}
+            question={question}
+            setQuestion={setQuestion}
+            handleAskQuestion={handleAskQuestion}
+            onClose={() => setIsChatOpen(false)}
             darkMode={darkMode}
           />
         </div>
-      </Container>
-      
-      {/* Floating Chat Widget */}
-      <FloatingChat 
-        chatMessages={chatMessages}
-        question={question}
-        setQuestion={setQuestion}
-        handleAskQuestion={handleAskQuestion}
-        darkMode={darkMode}
-      />
+      ) : (
+        <FloatingChatButton 
+          onClick={() => setIsChatOpen(true)}
+          darkMode={darkMode}
+        />
+      )}
     </div>
   );
 }
 
-// Original Dashboard Card Component
+// Dashboard Card Component
 const DashboardCard = ({ title, value, icon, darkMode }) => {
   return (
     <div className={`rounded-lg shadow-md p-6 transition-colors duration-300 ${
-      darkMode ? 'bg-gray-800' : 'bg-white'
+      darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white'
     }`}>
       <div className="flex items-center justify-between">
         <div>
@@ -250,7 +279,7 @@ const DashboardCard = ({ title, value, icon, darkMode }) => {
 const EnhancedDashboardCard = ({ title, value, icon, darkMode, subsections }) => {
   return (
     <div className={`rounded-lg shadow-md p-6 transition-colors duration-300 ${
-      darkMode ? 'bg-gray-800' : 'bg-white'
+      darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white'
     }`}>
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -292,6 +321,86 @@ const EnhancedDashboardCard = ({ title, value, icon, darkMode, subsections }) =>
             <p className={`text-lg font-semibold ${section.colorClass}`}>
               {section.value}
             </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Sales Rep Card Component
+const SalesRepCard = ({ rep, darkMode }) => {
+  return (
+    <div className={`h-full rounded-lg shadow-md p-6 transition-colors duration-300 ${
+      darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+    }`}>
+      <h3 className={`text-xl font-bold mb-2 ${
+        darkMode ? 'text-white' : 'text-gray-800'
+      }`}>
+        {rep.name}
+      </h3>
+      <p className={`mb-4 ${
+        darkMode ? 'text-gray-300' : 'text-gray-600'
+      }`}>
+        {rep.role} | {rep.region}
+      </p>
+      
+      <div className={`rounded-md p-4 mb-4 ${
+        darkMode ? 'bg-gray-700' : 'bg-gray-100'
+      }`}>
+        <strong className={`block mb-2 ${
+          darkMode ? 'text-gray-300' : 'text-gray-700'
+        }`}>Skills:</strong>
+        <div className="flex flex-wrap gap-2">
+          {rep.skills.map((skill) => (
+            <span
+              key={skill}
+              className={`text-xs px-2 py-1 rounded-full ${
+                darkMode 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-blue-100 text-blue-800'
+              }`}
+            >
+              {skill}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <strong className={`block mb-2 ${
+          darkMode ? 'text-gray-300' : 'text-gray-700'
+        }`}>Deals:</strong>
+        {rep.deals.map((deal, index) => (
+          <div
+            key={index}
+            className={`flex justify-between items-center p-3 rounded-md mb-2 ${
+              darkMode ? 'bg-gray-700' : 'bg-gray-50'
+            }`}
+          >
+            <div>
+              <span className={`font-semibold ${
+                darkMode ? 'text-white' : 'text-gray-800'
+              }`}>
+                {deal.client}
+              </span>
+              <span className={`ml-2 ${
+                darkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
+                ${deal.value.toLocaleString()}
+              </span>
+            </div>
+            <span
+              className={`text-sm font-medium px-2 py-1 rounded-full ${
+                deal.status === "Closed Won"
+                  ? darkMode ? "text-green-300 bg-green-900/30" : "text-green-800 bg-green-100"
+                  : deal.status === "In Progress"
+                  ? darkMode ? "text-yellow-300 bg-yellow-900/30" : "text-yellow-800 bg-yellow-100"
+                  : darkMode ? "text-red-300 bg-red-900/30" : "text-red-800 bg-red-100"
+              }`}
+            >
+              {deal.status}
+            </span>
           </div>
         ))}
       </div>
