@@ -71,7 +71,7 @@ frontend/
    Create a `.env.local` file in the frontend root directory with the following variables:
 
    ```
-   NEXT_PUBLIC_API_URL=http://localhost:8000
+   NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
    ```
 
    Adjust the URL if your backend is running on a different port or host.
