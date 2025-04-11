@@ -23,8 +23,8 @@ const useSalesData = () => {
         
         // Fetch both sales reps data and analytics in parallel
         const [salesResponse, analyticsResponse] = await Promise.all([
-          fetch('http://localhost:8000/api/data'),
-          fetch('http://localhost:8000/api/sales-analytics')
+          fetch(process.env.NEXT_PUBLIC_BACKEND_URL + '/api/data'),
+          fetch(process.env.NEXT_PUBLIC_BACKEND_URL + '/api/sales-analytics')
         ]);
         
         if (!salesResponse.ok) {
