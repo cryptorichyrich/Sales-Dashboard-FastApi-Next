@@ -4,3 +4,7 @@ google-generativeai
 python-dotenv
 requests
 psutil
+pydantic
+python-multipart
+python-jose[cryptography]
+passlib[bcrypt]

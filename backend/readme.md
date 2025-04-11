@@ -6,8 +6,10 @@ A FastAPI backend for serving sales data and providing AI-powered insights using
 
 - **Data API**: Endpoints for accessing sales representatives data
 - **AI Integration**: Natural language processing for sales queries using Gemini 2.0 Flash-Lite
-- **Analytics**: Analytics endpoints for sales performance metrics
+- **Analytics**: Advanced analytics endpoints for sales performance metrics
+- **Health Monitoring**: Comprehensive system health check with CPU/memory metrics
 - **CORS Support**: Configured for cross-origin requests from frontend applications
+- **OpenAPI Documentation**: Interactive API documentation via Swagger UI
 - **Context Generation**: Automatic context generation from sales data for more accurate AI responses
 
 ## Project Structure
@@ -83,9 +85,13 @@ backend/
    curl http://localhost:8000/health
    ```
    
-   You should see: `{"status": "healthy"}`
+   You should see a comprehensive health status response.
 
 ## API Documentation
+
+Interactive API documentation is available at:
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
 
 ### Data Endpoints
 
@@ -93,6 +99,7 @@ backend/
   - Returns the full sales representatives data
   - Response: JSON object containing sales representatives information
   - No parameters required
+  - Tagged as: `Data`
 
 ### AI Endpoints
 
@@ -101,6 +108,8 @@ backend/
   - Request Body: `{ "question": "your question here" }`
   - Response: `{ "answer": "AI-generated answer" }`
   - Requires valid Gemini API key in the environment variables
+  - Tagged as: `AI`
+  - Response limited to 200 words for conciseness
 
 ### Analytics Endpoints
 
@@ -112,44 +121,59 @@ backend/
     - `totalDealValue`: Sum of all deal values
     - `averageDealValue`: Average deal value
     - `regionDistribution`: List of unique regions
+  - Tagged as: `Analytics`
 
-### Utility Endpoints
+### System Endpoints
 
 - `GET /health`
-  - Simple health check endpoint
-  - Response: `{ "status": "healthy" }`
+  - Comprehensive health check endpoint
+  - Response: Detailed JSON with:
+    - `status`: Overall health status ("healthy", "degraded", or "unhealthy")
+    - `timestamp`: Unix timestamp when health check was performed
+    - `version`: API version string
+    - `components`: Status of individual system components
+  - HTTP Status: 
+    - 200: System healthy
+    - 503: System degraded
+  - Tagged as: `System`
+  - Includes system metrics like CPU and memory usage
 
-## Data Model
+## Health Monitoring
 
-The backend works with the following data structure:
+The enhanced `/health` endpoint provides comprehensive system status information:
 
 ```json
 {
-  "salesReps": [
-    {
-      "id": Number,
-      "name": "String",
-      "role": "String",
-      "region": "String",
-      "skills": ["String"],
-      "deals": [
-        { 
-          "client": "String", 
-          "value": Number, 
-          "status": "String" 
-        }
-      ],
-      "clients": [
-        { 
-          "name": "String", 
-          "industry": "String", 
-          "contact": "String" 
-        }
-      ]
+  "status": "healthy",
+  "timestamp": 1713042456.789,
+  "version": "1.0.0",
+  "components": {
+    "system": {
+      "status": "up",
+      "memory": {
+        "total": 16853590016,
+        "available": 8543252480,
+        "percent": 49.3
+      },
+      "cpu": {
+        "usage": 25.2,
+        "cores": 8
+      }
+    },
+    "datastore": {
+      "status": "up",
+      "type": "file",
+      "responseTime": 12.34
+    },
+    "gemini_api": {
+      "status": "up", 
+      "responseTime": 124.56
     }
-  ]
+  }
 }
 ```
+
+This endpoint is compatible with the `HealthStatusIndicator.js` React component for frontend status monitoring.
 
 ## AI Implementation Details
 
@@ -162,13 +186,33 @@ The backend uses Google's Gemini 2.0 Flash-Lite model to process natural languag
   - `max_output_tokens`: 200 (concise responses)
 - **Error Handling**: Comprehensive error handling to provide graceful fallbacks when the AI service is unavailable
 
+### Example AI Questions
+
+- "Who is the top performer in North America?"
+- "What's the total value of closed deals?"
+- "Which region has the highest number of in-progress deals?"
+- "What skills do the most successful sales reps have?"
+- "Compare the performance of sales reps in Europe vs. Asia-Pacific"
+- "What's the average deal value across all regions?"
+
 ## Configuration Options
 
 The following environment variables can be configured:
 
 - `GOOGLE_GEMINI_API_KEY`: Required for AI functionality
-- `PORT`: (Optional) Server port (defaults to 8000)
-- `HOST`: (Optional) Server host (defaults to 0.0.0.0)
+
+## Dependencies
+
+The application relies on the following key dependencies:
+
+- **FastAPI**: Modern web framework for building APIs
+- **Uvicorn**: ASGI server for running the application
+- **google-generativeai**: Client library for Google's Gemini models
+- **python-dotenv**: For loading environment variables
+- **psutil**: For system metrics in health monitoring
+- **requests**: For HTTP requests
+
+All dependencies are listed in `requirements.txt`.
 
 ## Troubleshooting
 
@@ -177,6 +221,7 @@ The following environment variables can be configured:
 - **CORS Issues**: If frontend cannot access the API, check the CORS configuration in `main.py`
 - **Server Start Failures**: Check for port conflicts if the server fails to start
 - **Dependencies Issues**: Make sure all dependencies are installed with `pip install -r requirements.txt`
+- **System Metrics Issues**: If health check doesn't show system metrics, ensure `psutil` is installed
 
 ## Security Considerations
 
@@ -187,6 +232,7 @@ The following environment variables can be configured:
 ## Performance Optimization
 
 - The sales context is generated once when the server starts, reducing processing time for each request
+- System metrics are fetched efficiently with minimal overhead
 - Consider implementing caching for frequent queries to reduce API calls to Gemini
 
 ## Potential Improvements
@@ -196,16 +242,12 @@ The following environment variables can be configured:
 3. **Pagination**: Add pagination support for large datasets
 4. **Advanced Analytics**: Implement more sophisticated analytics with time-series data
 5. **Request Validation**: Add more comprehensive request validation
-6. **Logging**: Add structured logging for better debugging
-7. **Testing**: Add unit and integration tests
-8. **Containerization**: Add Docker support for easier deployment
-9. **CI/CD Pipeline**: Set up continuous integration and deployment
-10. **Swagger Documentation**: Enhance API documentation with more details
+6. **Testing**: Add unit and integration tests
+7. **Containerization**: Add Docker support for easier deployment
+8. **CI/CD Pipeline**: Set up continuous integration and deployment
+9. **Caching**: Implement response caching for better performance
+10. **Advanced Monitoring**: Add logging and more detailed metrics
 
-## Contributing
+## License
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+MIT License

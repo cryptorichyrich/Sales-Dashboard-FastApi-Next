@@ -173,8 +173,6 @@ The backend uses Google's Gemini 2.0 Flash-Lite model to process natural languag
 The following environment variables can be configured:
 
 - `GOOGLE_GEMINI_API_KEY`: Required for AI functionality
-- `PORT`: (Optional) Server port (defaults to 8000)
-- `HOST`: (Optional) Server host (defaults to 0.0.0.0)
 
 ## Troubleshooting
 
