@@ -1,255 +1,525 @@
-# Sales Dashboard Backend
+from fastapi import FastAPI, Request, HTTPException, status
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+from typing import Dict, List, Optional, Any
+import uvicorn
+import json
+import os
+from dotenv import load_dotenv
+import google.generativeai as genai
+# Add psutil for system metrics
+try:
+    import psutil
+except ImportError:
+    print("WARNING: psutil not installed. System metrics will be limited.")
+    # Provide a fallback psutil module with minimal functionality
+    class FallbackPsUtil:
+        class VirtualMemory:
+            def __init__(self):
+                self.total = 8 * 1024 * 1024 * 1024  # 8GB
+                self.available = 4 * 1024 * 1024 * 1024  # 4GB
+                self.percent = 50.0
+        
+        def virtual_memory(self):
+            return self.VirtualMemory()
+        
+        def cpu_percent(self, interval=0.1):
+            return 25.0
+        
+        def cpu_count(self, logical=True):
+            return 4
+    
+    psutil = FallbackPsUtil()
 
-A FastAPI backend for serving sales data and providing AI-powered insights using Google's Gemini model.
+# Load environment variables
+load_dotenv()
+
+# Define API description
+description = """
+# Sales Dashboard API
+
+This API provides access to sales representatives data and AI-powered insights using Google's Gemini model.
 
 ## Features
 
-- **Data API**: Endpoints for accessing sales representatives data
-- **AI Integration**: Natural language processing for sales queries using Gemini 2.0 Flash-Lite
-- **Analytics**: Advanced analytics endpoints for sales performance metrics
-- **Health Monitoring**: Comprehensive system health check with CPU/memory metrics
-- **CORS Support**: Configured for cross-origin requests from frontend applications
-- **OpenAPI Documentation**: Interactive API documentation via Swagger UI
-- **Context Generation**: Automatic context generation from sales data for more accurate AI responses
+* **Data Access**: Get detailed information about sales representatives
+* **AI Insights**: Ask questions about sales data in natural language
+* **Analytics**: Get aggregated sales performance metrics
 
-## Project Structure
+## Authentication
 
-```
-backend/
-├── dummyData.json      # Mock sales data in JSON format
-├── main.py             # FastAPI application with all endpoints
-├── requirements.txt    # Python dependencies
-├── .env                # Environment variables (create this file)
-└── README.md           # This documentation file
-```
+This API currently does not require authentication, but it may be added in future versions.
 
-## Prerequisites
+## Rate Limiting
 
-- Python 3.7 or later
-- Google Gemini API key (for AI features)
-- Virtual environment tool (recommended: venv)
+There are no rate limits currently applied to the API endpoints, but please use them responsibly.
+"""
 
-## Setup Instructions
+# Initialize FastAPI with metadata
+app = FastAPI(
+    title="Sales Dashboard API",
+    description=description,
+    version="1.0.0",
+    contact={
+        "name": "API Support",
+        "email": "support@example.com",
+    },
+    license_info={
+        "name": "MIT License",
+    },
+    openapi_tags=[
+        {
+            "name": "AI",
+            "description": "Operations with AI-powered insights and analysis"
+        },
+        {
+            "name": "Data",
+            "description": "Access to raw sales representatives data"
+        },
+        {
+            "name": "Analytics",
+            "description": "Aggregated sales metrics and statistics"
+        },
+        {
+            "name": "System",
+            "description": "System operations and health monitoring"
+        }
+    ],
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
 
-1. **Clone the Repository**
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
-   ```bash
-   git clone <repository-url>
-   cd backend
-   ```
+# Load dummy data
+with open("dummyData.json", "r") as f:
+    DUMMY_DATA = json.load(f)
 
-2. **Create and Activate Virtual Environment**
+# Configure Google Gemini API
+GEMINI_API_KEY = os.getenv('GOOGLE_GEMINI_API_KEY')
+if not GEMINI_API_KEY:
+    print("WARNING: Gemini API key not found. AI features will be disabled.")
+else:
+    genai.configure(api_key=GEMINI_API_KEY)
 
-   ```bash
-   # Create a virtual environment
-   python -m venv venv
-   
-   # Activate the virtual environment
-   # On Windows:
-   venv\Scripts\activate
-   
-   # On macOS/Linux:
-   source venv/bin/activate
-   ```
+# Define request and response models for better documentation
+class AIQuestion(BaseModel):
+    question: str = Field(
+        ..., 
+        example="Who is the top performer in North America?",
+        description="A natural language question about sales data"
+    )
 
-3. **Install Dependencies**
+class AIResponse(BaseModel):
+    answer: str = Field(
+        ...,
+        example="Based on the data, Alice is the top performer in North America with $120,000 in closed deals.",
+        description="AI-generated answer to the user's question"
+    )
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+class HealthResponse(BaseModel):
+    status: str = Field(
+        ...,
+        example="healthy",
+        description="API health status"
+    )
+    timestamp: float = Field(
+        ...,
+        example=1713042456.789,
+        description="Unix timestamp of the health check"
+    )
+    version: str = Field(
+        ...,
+        example="1.0.0",
+        description="API version"
+    )
+    components: Dict[str, Any] = Field(
+        ...,
+        example={
+            "datastore": {"status": "up", "type": "file"},
+            "gemini_api": {"status": "up", "responseTime": 124.56}
+        },
+        description="Status of individual system components"
+    )
 
-4. **Configure Environment Variables**
+class SalesAnalytics(BaseModel):
+    totalDealCount: int
+    dealStatusSummary: Dict[str, int]
+    totalDealValue: float
+    averageDealValue: float
+    regionDistribution: List[str]
 
-   Create a `.env` file in the backend directory with the following:
+# Generate context from DUMMY_DATA
+def generate_sales_context():
+    """
+    Create a detailed, comprehensive context based on the sales representatives data
+    """
+    # Overall sales team statistics
+    total_reps = len(DUMMY_DATA.get('salesReps', []))
+    total_deals = sum(len(rep['deals']) for rep in DUMMY_DATA.get('salesReps', []))
+    total_deal_value = sum(sum(deal['value'] for deal in rep['deals']) for rep in DUMMY_DATA.get('salesReps', []))
+    
+    # Deal status aggregation
+    deal_status = {
+        "Closed Won": sum(len([d for d in rep['deals'] if d['status'] == 'Closed Won']) for rep in DUMMY_DATA.get('salesReps', [])),
+        "In Progress": sum(len([d for d in rep['deals'] if d['status'] == 'In Progress']) for rep in DUMMY_DATA.get('salesReps', [])),
+        "Closed Lost": sum(len([d for d in rep['deals'] if d['status'] == 'Closed Lost']) for rep in DUMMY_DATA.get('salesReps', []))
+    }
+    
+    # Detailed sales representatives breakdown
+    rep_details = []
+    for rep in DUMMY_DATA.get('salesReps', []):
+        # Calculate rep-specific statistics
+        rep_total_deals = len(rep['deals'])
+        rep_total_value = sum(deal['value'] for deal in rep['deals'])
+        rep_won_deals = len([d for d in rep['deals'] if d['status'] == 'Closed Won'])
+        rep_won_value = sum(deal['value'] for deal in rep['deals'] if deal['status'] == 'Closed Won')
+        
+        rep_summary = (
+            f"{rep['name']} ({rep['role']} in {rep['region']}):\n"
+            f"  - Key Skills: {', '.join(rep['skills'])}\n"
+            f"  - Total Deals: {rep_total_deals}\n"
+            f"  - Total Deal Value: ${rep_total_value:,}\n"
+            f"  - Closed Won Deals: {rep_won_deals} (${rep_won_value:,})\n"
+            f"  - Top Clients: {', '.join(client['name'] for client in rep['clients'])}"
+        )
+        rep_details.append(rep_summary)
+    
+    # Compose the full context
+    full_context = f"""
+        Sales Team Comprehensive Overview:
 
-   ```
-   GOOGLE_GEMINI_API_KEY=your_gemini_api_key_here
-   ```
+        Team Composition:
+        - Total Sales Representatives: {total_reps}
+        - Regions Covered: North America, Europe, Asia-Pacific, South America, Middle East
 
-   You can obtain a Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey).
+        Overall Performance:
+        - Total Deals: {total_deals}
+        - Total Deal Value: ${total_deal_value:,}
+        - Deal Status Breakdown:
+        * Closed Won: {deal_status['Closed Won']}
+        * In Progress: {deal_status['In Progress']}
+        * Closed Lost: {deal_status['Closed Lost']}
 
-5. **Start the Server**
+        Detailed Representative Insights:
+        {chr(10).join(rep_details)}
 
-   ```bash
-   # Run the server with auto-reload
-   python main.py
-   ```
+        Strategic Recommendations:
+        - Focus on converting 'In Progress' deals
+        - Analyze factors contributing to successful deal closures
+        - Leverage top performers' skills across the team
+        - Investigate reasons behind 'Closed Lost' deals
+        - Continue expanding into diverse industry sectors
 
-   The server will run on http://localhost:8000 by default.
+        Operational Context:
+        - Diverse skill sets including Negotiation, CRM, Client Relations
+        - Representation across multiple global regions
+        - Mix of roles from Sales Representatives to Regional Managers
+    """
+    
+    return full_context
 
-6. **Verify Installation**
+# Generate context once when the module is loaded
+SALES_CONTEXT = generate_sales_context()
 
-   Visit http://localhost:8000/health in your browser or run:
-   
-   ```bash
-   curl http://localhost:8000/health
-   ```
-   
-   You should see a comprehensive health status response.
+@app.post("/api/ai", response_model=AIResponse, tags=["AI"], summary="Get AI-powered answer to sales questions")
+async def ai_endpoint(question_data: AIQuestion):
+    """
+    Ask a question about sales data and get an AI-generated response.
+    
+    The AI has access to comprehensive information about:
+    - Sales representatives and their performance
+    - Deal statuses and values
+    - Client information and industries
+    - Regional performance metrics
+    
+    ## Example questions:
+    - "Who is the top performer in North America?"
+    - "What's the total value of closed deals?"
+    - "Which region has the highest number of in-progress deals?"
+    - "What skills do the most successful sales reps have?"
+    - "Compare the performance of sales reps in Europe vs. Asia-Pacific"
+    - "What's the average deal value across all regions?"
+    
+    ## Notes:
+    - Questions should be related to the available sales data
+    - Responses are limited to 200 words for conciseness
+    - If the Gemini API key is not configured, AI features will be unavailable
+    
+    ## Error Handling:
+    - Returns 200 with explanatory message if AI features are disabled
+    - Returns 200 with helpful message if question is empty
+    - Returns 200 with error message if processing fails
+    """
+    try:
+        # Check if API key is configured
+        if not GEMINI_API_KEY:
+            return AIResponse(answer="AI features are currently unavailable. Please contact support.")
 
-## API Documentation
+        user_question = question_data.question
 
-Interactive API documentation is available at:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+        # Validate input
+        if not user_question.strip():
+            return AIResponse(answer="Please ask a specific question about sales.")
 
-### Data Endpoints
+        # Select Gemini 2.0 Flash-Lite model
+        model = genai.GenerativeModel('gemini-2.0-flash-lite')
 
-- `GET /api/data` 
-  - Returns the full sales representatives data
-  - Response: JSON object containing sales representatives information
-  - No parameters required
-  - Tagged as: `Data`
+        # Generate response with optimized prompt
+        full_prompt = f"""
+        Sales Context:
+        {SALES_CONTEXT}
 
-### AI Endpoints
+        Analyze and respond to this query concisely:
+        {user_question}
 
-- `POST /api/ai`
-  - Accepts a user question and returns an AI-generated response
-  - Request Body: `{ "question": "your question here" }`
-  - Response: `{ "answer": "AI-generated answer" }`
-  - Requires valid Gemini API key in the environment variables
-  - Tagged as: `AI`
-  - Response limited to 200 words for conciseness
+        Guidelines:
+        - Be precise and data-driven
+        - Provide clear, actionable insights
+        - Limit response to 200 words
+        """
+        
+        # Generate response with reduced tokens and specificity
+        generation_config = {
+            'temperature': 0.5,  # Balanced creativity and factuality
+            'max_output_tokens': 200,  # Limit response length
+        }
+        
+        response = model.generate_content(
+            full_prompt, 
+            generation_config=generation_config
+        )
 
-### Analytics Endpoints
+        # Extract and return the AI's response
+        ai_answer = response.text.strip()
+        return AIResponse(answer=ai_answer)
 
-- `GET /api/sales-analytics`
-  - Provides aggregated sales analytics
-  - Response: JSON object with:
-    - `totalDealCount`: Number of deals across all representatives
-    - `dealStatusSummary`: Count of deals by status (Closed Won, In Progress, Closed Lost)
-    - `totalDealValue`: Sum of all deal values
-    - `averageDealValue`: Average deal value
-    - `regionDistribution`: List of unique regions
-  - Tagged as: `Analytics`
+    except Exception as e:
+        # Comprehensive error handling
+        print(f"Error in AI endpoint: {e}")
+        return AIResponse(answer="Sorry, I'm having trouble processing your request right now.")
 
-### System Endpoints
+@app.get("/api/sales-analytics", response_model=SalesAnalytics, tags=["Analytics"], summary="Get sales analytics metrics")
+def get_sales_analytics():
+    """
+    Provide aggregated sales analytics based on the sales representatives data.
+    
+    Returns:
+    - Total number of deals across all representatives
+    - Breakdown of deals by status (Closed Won, In Progress, Closed Lost)
+    - Total value of all deals
+    - Average deal value
+    - List of regions where sales representatives operate
+    
+    ## Response Details:
+    - `totalDealCount`: Integer count of all deals across sales reps
+    - `dealStatusSummary`: Counts of deals in each status category
+    - `totalDealValue`: Sum of all deal values in dollars
+    - `averageDealValue`: Mean value per deal across the entire dataset
+    - `regionDistribution`: List of unique regions represented in the data
+    
+    This endpoint is useful for:
+    - Dashboard overview metrics
+    - Sales performance monitoring
+    - Regional distribution analysis
+    - Executive reporting
+    """
+    sales_reps = DUMMY_DATA.get('salesReps', [])
+    
+    # Calculate total deals and their statuses
+    total_deals = []
+    deal_status_summary = {
+        "Closed Won": 0,
+        "In Progress": 0,
+        "Closed Lost": 0
+    }
+    total_deal_value = 0
+    
+    for rep in sales_reps:
+        for deal in rep.get('deals', []):
+            total_deals.append(deal)
+            deal_status_summary[deal['status']] += 1
+            total_deal_value += deal['value']
+    
+    return SalesAnalytics(
+        totalDealCount=len(total_deals),
+        dealStatusSummary=deal_status_summary,
+        totalDealValue=total_deal_value,
+        averageDealValue=total_deal_value / len(total_deals) if total_deals else 0,
+        regionDistribution=list(set(rep['region'] for rep in sales_reps))
+    )
 
-- `GET /health`
-  - Comprehensive health check endpoint
-  - Response: Detailed JSON with:
+@app.get("/api/data", tags=["Data"], summary="Get all sales representatives data")
+def get_data():
+    """
+    Returns complete sales representatives data from the database.
+    
+    The data includes:
+    - Sales representatives information (name, role, region)
+    - Skills for each representative
+    - Deal information (client, value, status)
+    - Client information (name, industry, contact)
+    
+    ## Data Structure:
+    ```json
+    {
+      "salesReps": [
+        {
+          "id": 1,
+          "name": "String",
+          "role": "String",
+          "region": "String",
+          "skills": ["String"],
+          "deals": [
+            { 
+              "client": "String", 
+              "value": Number, 
+              "status": "String" 
+            }
+          ],
+          "clients": [
+            { 
+              "name": "String", 
+              "industry": "String", 
+              "contact": "String" 
+            }
+          ]
+        }
+      ]
+    }
+    ```
+    
+    This endpoint provides the raw data for building:
+    - Sales representative profiles
+    - Deal tracking interfaces
+    - Client relationship management
+    - Performance analysis dashboards
+    """
+    return DUMMY_DATA
+
+
+@app.get("/health", tags=["System"], summary="API health check")
+async def health_check():
+    """
+    Comprehensive health check endpoint that verifies API is running
+    along with critical dependencies and services.
+    
+    ## Response Structure:
     - `status`: Overall health status ("healthy", "degraded", or "unhealthy")
     - `timestamp`: Unix timestamp when health check was performed
     - `version`: API version string
-    - `components`: Status of individual system components
-  - HTTP Status: 
-    - 200: System healthy
-    - 503: System degraded
-  - Tagged as: `System`
-  - Includes system metrics like CPU and memory usage
-
-## Health Monitoring
-
-The enhanced `/health` endpoint provides comprehensive system status information:
-
-```json
-{
-  "status": "healthy",
-  "timestamp": 1713042456.789,
-  "version": "1.0.0",
-  "components": {
-    "system": {
-      "status": "up",
-      "memory": {
-        "total": 16853590016,
-        "available": 8543252480,
-        "percent": 49.3
-      },
-      "cpu": {
-        "usage": 25.2,
-        "cores": 8
-      }
-    },
-    "datastore": {
-      "status": "up",
-      "type": "file",
-      "responseTime": 12.34
-    },
-    "gemini_api": {
-      "status": "up", 
-      "responseTime": 124.56
+    - `components`: Detailed status of individual system components including:
+      - `datastore`: Status of the data storage system
+      - `gemini_api`: Status and response time of the Gemini API
+      - `system`: System resources like CPU and memory usage
+    
+    ## HTTP Status Codes:
+    - 200: API is fully operational
+    - 503: API is running but one or more components are degraded or unavailable
+    
+    This endpoint is designed to work with frontend health monitoring components
+    and automated health check systems.
+    """
+    import time
+    import psutil
+    
+    health_data = {
+        "status": "healthy",
+        "timestamp": time.time(),
+        "version": "1.0.0",
+        "components": {}
     }
-  }
-}
-```
+    
+    # Add system metrics
+    try:
+        health_data["components"]["system"] = {
+            "status": "up",
+            "memory": {
+                "total": psutil.virtual_memory().total,
+                "available": psutil.virtual_memory().available,
+                "percent": psutil.virtual_memory().percent
+            },
+            "cpu": {
+                "usage": psutil.cpu_percent(interval=0.1),
+                "cores": psutil.cpu_count(logical=True)
+            }
+        }
+    except Exception as e:
+        health_data["components"]["system"] = {
+            "status": "up",  # Still up even if we can't get detailed metrics
+            "memory": {
+                "total": 0,
+                "available": 0,
+                "percent": 0
+            },
+            "cpu": {
+                "usage": 0,
+                "cores": 0
+            },
+            "error": str(e)
+        }
+    
+    # Check file system access
+    try:
+        start_time = time.time()
+        with open("dummyData.json", "r") as f:
+            pass
+        response_time = time.time() - start_time
+        
+        health_data["components"]["datastore"] = {
+            "status": "up",
+            "type": "file",
+            "responseTime": round(response_time * 1000, 2)
+        }
+    except Exception as e:
+        health_data["components"]["datastore"] = {
+            "status": "down",
+            "type": "file",
+            "error": str(e)
+        }
+        health_data["status"] = "degraded"
+    
+    # Check Gemini API connectivity
+    if GEMINI_API_KEY:
+        try:
+            model = genai.GenerativeModel('gemini-2.0-flash-lite')
+            start_time = time.time()
+            model_info = model.count_tokens("test")
+            response_time = time.time() - start_time
+            
+            health_data["components"]["gemini_api"] = {
+                "status": "up",
+                "responseTime": round(response_time * 1000, 2)
+            }
+        except Exception as e:
+            health_data["components"]["gemini_api"] = {
+                "status": "down",
+                "error": str(e)
+            }
+            health_data["status"] = "degraded"
+    else:
+        health_data["components"]["gemini_api"] = {
+            "status": "disabled",
+            "reason": "API key not configured"
+        }
+    
+    # Determine response status code
+    response_status = status.HTTP_200_OK
+    if health_data["status"] != "healthy":
+        response_status = status.HTTP_503_SERVICE_UNAVAILABLE
+        
+    return JSONResponse(
+        content=health_data,
+        status_code=response_status
+    )
 
-This endpoint is compatible with the `HealthStatusIndicator.js` React component for frontend status monitoring.
-
-## AI Implementation Details
-
-The backend uses Google's Gemini 2.0 Flash-Lite model to process natural language queries about the sales data:
-
-- **Context Generation**: The backend automatically generates a detailed context from the sales data using the `generate_sales_context()` function
-- **Intelligent Prompting**: User questions are wrapped with the generated context for more relevant responses
-- **Optimized Parameters**:
-  - `temperature`: 0.5 (balanced creativity and factuality)
-  - `max_output_tokens`: 200 (concise responses)
-- **Error Handling**: Comprehensive error handling to provide graceful fallbacks when the AI service is unavailable
-
-### Example AI Questions
-
-- "Who is the top performer in North America?"
-- "What's the total value of closed deals?"
-- "Which region has the highest number of in-progress deals?"
-- "What skills do the most successful sales reps have?"
-- "Compare the performance of sales reps in Europe vs. Asia-Pacific"
-- "What's the average deal value across all regions?"
-
-## Configuration Options
-
-The following environment variables can be configured:
-
-- `GOOGLE_GEMINI_API_KEY`: Required for AI functionality
-- `PORT`: (Optional) Server port (defaults to 8000)
-- `HOST`: (Optional) Server host (defaults to 0.0.0.0)
-
-## Dependencies
-
-The application relies on the following key dependencies:
-
-- **FastAPI**: Modern web framework for building APIs
-- **Uvicorn**: ASGI server for running the application
-- **google-generativeai**: Client library for Google's Gemini models
-- **python-dotenv**: For loading environment variables
-- **psutil**: For system metrics in health monitoring
-- **requests**: For HTTP requests
-
-All dependencies are listed in `requirements.txt`.
-
-## Troubleshooting
-
-- **Missing API Key Warning**: If you see "WARNING: Gemini API key not found. AI features will be disabled" on startup, check your `.env` file
-- **AI Responses Unavailable**: If responses from `/api/ai` return "AI features are currently unavailable", verify your Gemini API key
-- **CORS Issues**: If frontend cannot access the API, check the CORS configuration in `main.py`
-- **Server Start Failures**: Check for port conflicts if the server fails to start
-- **Dependencies Issues**: Make sure all dependencies are installed with `pip install -r requirements.txt`
-- **System Metrics Issues**: If health check doesn't show system metrics, ensure `psutil` is installed
-
-## Security Considerations
-
-- This implementation uses open CORS settings for development. For production, restrict `allow_origins` to your frontend domain
-- The Gemini API key should be kept secure and not committed to version control
-- For production, consider adding proper authentication and rate limiting
-
-## Performance Optimization
-
-- The sales context is generated once when the server starts, reducing processing time for each request
-- System metrics are fetched efficiently with minimal overhead
-- Consider implementing caching for frequent queries to reduce API calls to Gemini
-
-## Potential Improvements
-
-1. **Database Integration**: Replace dummyData.json with a proper database (PostgreSQL, MongoDB)
-2. **Authentication**: Add JWT authentication for secure access
-3. **Pagination**: Add pagination support for large datasets
-4. **Advanced Analytics**: Implement more sophisticated analytics with time-series data
-5. **Request Validation**: Add more comprehensive request validation
-6. **Testing**: Add unit and integration tests
-7. **Containerization**: Add Docker support for easier deployment
-8. **CI/CD Pipeline**: Set up continuous integration and deployment
-9. **Caching**: Implement response caching for better performance
-10. **Advanced Monitoring**: Add logging and more detailed metrics
-
-## License
-
-MIT License
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

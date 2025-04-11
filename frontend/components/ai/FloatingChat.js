@@ -88,7 +88,7 @@ const FloatingChat = ({ chatMessages, question, setQuestion, handleAskQuestion, 
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
                 handleAskQuestion();
               }
@@ -115,7 +115,7 @@ const FloatingChat = ({ chatMessages, question, setQuestion, handleAskQuestion, 
         </div>
         <p className={`text-xs mt-2 text-center ${
           darkMode ? 'text-gray-500' : 'text-gray-400'
-        }`}>Press Enter to send</p>
+        }`}>Press CTRL+Enter to send</p>
       </div>
     </div>
   );
