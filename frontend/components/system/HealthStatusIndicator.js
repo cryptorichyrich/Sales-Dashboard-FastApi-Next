@@ -6,6 +6,7 @@ const HealthStatusIndicator = ({ darkMode }) => {
   const [healthData, setHealthData] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const detailsRef = useRef(null);
+  const [clientResponseTime, setClientResponseTime] = useState(null);
 
   // Handle click outside to close details panel
   useEffect(() => {
@@ -25,10 +26,19 @@ const HealthStatusIndicator = ({ darkMode }) => {
   const checkHealth = async () => {
     try {
       setStatus('checking');
+      
+      // Start timing the request
+      const startTime = performance.now();
+      
       const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_URL + '/health');
       const data = await response.json();
       
-      setHealthData(enhanceHealthData(data));
+      // End timing and calculate total round-trip time
+      const endTime = performance.now();
+      const roundTripTime = Math.round(endTime - startTime);
+      setClientResponseTime(roundTripTime);
+      
+      setHealthData(enhanceHealthData(data, roundTripTime));
       
       if (data.status === 'healthy') {
         setStatus('online');
@@ -38,6 +48,7 @@ const HealthStatusIndicator = ({ darkMode }) => {
     } catch (error) {
       console.error('Health check failed:', error);
       setStatus('offline');
+      setClientResponseTime(null);
       setHealthData({
         overview: {
           status: 'offline',
@@ -79,14 +90,14 @@ const HealthStatusIndicator = ({ darkMode }) => {
   };
 
   // Enhanced the health data with more information
-  const enhanceHealthData = (data) => {
+  const enhanceHealthData = (data, roundTripTime) => {
     if (!data) return null;
     
     // Process the provided data with the new structure
-    return formatHealthData(data);
+    return formatHealthData(data, roundTripTime);
   };
   
-  const formatHealthData = (data) => {
+  const formatHealthData = (data, roundTripTime) => {
     // Prepare services array from components
     const servicesArray = data.components ? Object.entries(data.components).map(([name, info]) => ({
       name: name.charAt(0).toUpperCase() + name.slice(1),
@@ -114,9 +125,12 @@ const HealthStatusIndicator = ({ darkMode }) => {
       },
       services: servicesArray,
       metrics: {
-        systemMemory: `${((data.components.system.memory.total - data.components.system.memory.available) / data.components.system.memory.total * 100).toFixed(1)}%`,
-        cpuUsage: `${data.components.system.cpu.usage}%`,
-        averageResponseTime: data.components.datastore?.responseTime ? `${data.components.datastore.responseTime}ms` : 'N/A',
+        systemMemory: data.components?.system ? 
+          `${((data.components.system.memory.total - data.components.system.memory.available) / data.components.system.memory.total * 100).toFixed(1)}%` : 'N/A',
+        cpuUsage: data.components?.system ? 
+          `${data.components.system.cpu.usage}%` : 'N/A',
+        // Use the client-side measured response time (end-to-end)
+        averageResponseTime: roundTripTime ? `${roundTripTime}ms` : 'N/A',
         requestsPerMinute: "N/A" // Not provided in the JSON
       }
     };
