@@ -1,2 +1,5 @@
 backend/.env
 frontend/.env
+frontend/.next
+frontend/.next
+frontend/package-locl.js
