@@ -1,50 +1,59 @@
 import { useState } from 'react';
 
 const useChat = () => {
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleAskQuestion = async () => {
-    if (!question.trim()) return;
-
-    // Store the current question
-    const currentQuestion = question;
-    
-    // Clear input immediately for better UX
-    setQuestion("");
+    // Skip if question is empty or currently loading
+    if (!question.trim() || isLoading) return;
 
     // Add user message to chat
-    const userMessage = {
-      type: "user",
-      text: currentQuestion,
-    };
+    const userMessage = { type: 'user', text: question };
     setChatMessages((prev) => [...prev, userMessage]);
 
+    // Clear input field
+    setQuestion('');
+
+    // Set loading state
+    setIsLoading(true);
+
     try {
+      // Make API request to backend
       const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_URL + '/api/ai', {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: currentQuestion,
-        }),
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question: userMessage.text }),
       });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
       const data = await response.json();
-
+      
       // Add AI response to chat
-      const aiMessage = {
-        type: "ai",
-        text: data.answer || data.response,
-      };
-      setChatMessages((prev) => [...prev, aiMessage]);
+      setChatMessages((prev) => [
+        ...prev,
+        { type: 'ai', text: data.answer || 'Sorry, I couldn\'t process your request.' },
+      ]);
     } catch (error) {
-      console.error("Error in AI request:", error);
-
+      console.error('Error fetching AI response:', error);
+      
       // Add error message to chat
-      const errorMessage = {
-        type: "ai",
-        text: "Sorry, there was an error processing your request.",
-      };
-      setChatMessages((prev) => [...prev, errorMessage]);
+      setChatMessages((prev) => [
+        ...prev,
+        { 
+          type: 'ai', 
+          text: 'Sorry, there was an error connecting to the AI service. Please try again later.' 
+        },
+      ]);
+    } finally {
+      // Reset loading state
+      setIsLoading(false);
     }
   };
 
@@ -52,7 +61,9 @@ const useChat = () => {
     question,
     setQuestion,
     chatMessages,
-    handleAskQuestion
+    setChatMessages,
+    isLoading,
+    handleAskQuestion,
   };
 };
 
