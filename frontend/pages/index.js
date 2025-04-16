@@ -140,8 +140,8 @@ export default function Home() {
       </Container>
       
       {/* Floating Chat */}
-      {isChatOpen ? (
-        <div className="fixed bottom-0 right-0 md:bottom-6 md:right-6 w-full md:w-96 h-[480px] md:h-[520px] md:rounded-lg shadow-xl z-50 overflow-hidden">
+      {isChatOpen && (
+        <div className="fixed bottom-0 right-0 md:bottom-6 md:right-6 w-full md:w-96 h-[480px] md:h-[520px] md:rounded-lg shadow-xl z-50 overflow-hidden transition-all duration-300">
           <FloatingChat 
             chatMessages={chatMessages}
             question={question}
@@ -151,7 +151,10 @@ export default function Home() {
             darkMode={darkMode}
           />
         </div>
-      ) : (
+      )}
+      
+      {/* Show chat button only when chat is closed */}
+      {!isChatOpen && (
         <FloatingChatButton 
           onClick={() => setIsChatOpen(true)}
           darkMode={darkMode}

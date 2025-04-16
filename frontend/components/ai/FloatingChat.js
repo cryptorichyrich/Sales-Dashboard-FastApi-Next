@@ -1,17 +1,31 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const FloatingChat = ({ chatMessages, question, setQuestion, handleAskQuestion, onClose, darkMode }) => {
   const messagesEndRef = useRef(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
+  // Toggle fullscreen state
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
   return (
-    <div className={`flex flex-col h-full overflow-hidden ${
-      darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-800'
-    }`}>
+    <div 
+      className={`flex flex-col overflow-hidden transition-all duration-300 ${
+        isFullscreen 
+          ? 'fixed inset-0 z-50 h-screen w-screen rounded-none' 
+          : 'h-full rounded-lg'
+      } ${
+        darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-800'
+      }`}
+    >
       {/* Chat header */}
       <div className={`flex justify-between items-center p-4 border-b ${
         darkMode ? 'bg-gray-700 border-gray-600' : 'bg-blue-600 text-white border-blue-500'
@@ -30,15 +44,34 @@ const FloatingChat = ({ chatMessages, question, setQuestion, handleAskQuestion, 
             <p className="text-xs text-blue-100">Ask questions about sales data</p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="p-2 rounded-full hover:bg-gray-800 hover:bg-opacity-20 transition-colors focus:outline-none"
-          aria-label="Close chat"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
-        </button>
+        <div className="flex items-center">
+          {/* Fullscreen toggle button */}
+          <button
+            onClick={toggleFullscreen}
+            className="p-2 mr-2 rounded-full hover:bg-gray-800 hover:bg-opacity-20 transition-colors focus:outline-none"
+            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          >
+            {isFullscreen ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M5 10a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H6a1 1 0 01-1-1v-3zm7-1a1 1 0 00-1 1v3a1 1 0 001 1h3a1 1 0 001-1v-3a1 1 0 00-1-1h-3z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 11-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 111.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 111.414-1.414L15 13.586V12a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+            )}
+          </button>
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-gray-800 hover:bg-opacity-20 transition-colors focus:outline-none"
+            aria-label="Close chat"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </div>
       </div>
       
       {/* Messages container */}
@@ -70,7 +103,7 @@ const FloatingChat = ({ chatMessages, question, setQuestion, handleAskQuestion, 
         ) : (
           <div className="space-y-4">
             {chatMessages.map((message, index) => (
-              <ChatMessage key={index} message={message} />
+              <ChatMessage key={index} message={message} darkMode={darkMode} />
             ))}
             <div ref={messagesEndRef} />
           </div>
@@ -121,8 +154,8 @@ const FloatingChat = ({ chatMessages, question, setQuestion, handleAskQuestion, 
   );
 };
 
-// Chat Message Component
-const ChatMessage = ({ message }) => {
+// Chat Message Component with Markdown support
+const ChatMessage = ({ message, darkMode }) => {
   const isUser = message.type === "user";
   
   return (
@@ -137,13 +170,21 @@ const ChatMessage = ({ message }) => {
       )}
       
       <div
-        className={`max-w-[80%] p-3 rounded-lg ${
+        className={`max-w-[80%] p-3 rounded-lg overflow-auto prose prose-sm ${
           isUser
-            ? "bg-blue-600 text-white rounded-tr-none"
-            : "bg-gray-700 text-white rounded-tl-none"
+            ? "bg-blue-600 text-white rounded-tr-none prose-invert"
+            : darkMode ? "bg-gray-700 text-white rounded-tl-none prose-invert" : "bg-gray-200 text-gray-800 rounded-tl-none"
         }`}
       >
-        {message.text}
+        {isUser ? (
+          <div>{message.text}</div>
+        ) : (
+          <div className="markdown-content">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {message.text}
+            </ReactMarkdown>
+          </div>
+        )}
       </div>
       
       {isUser && (
