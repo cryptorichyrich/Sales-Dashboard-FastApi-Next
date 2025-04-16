@@ -72,7 +72,7 @@ backend/
 
    ```bash
    # Run the server with auto-reload
-   python main.py
+   python main.py --reload
    ```
 
    The server will run on http://localhost:8000 by default.
